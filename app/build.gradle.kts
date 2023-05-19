@@ -59,6 +59,20 @@ android {
             isDebuggable = true
             aaptOptions.cruncherEnabled = false
         }
+
+        create("custom") {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            aaptOptions.cruncherEnabled = false
+
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.create("custom") {
+                storeFile = file("${rootProject.projectDir}/custom.keystore")
+                storePassword = "123456"
+                keyAlias = "custom"
+                keyPassword = "123456"
+            }
+        }
     }
 
     flavorDimensions += "variant"
@@ -170,6 +184,7 @@ dependencies {
     debugImplementation(libs.leakcanary)
     debugImplementation(libs.redscreenofdeath.impl)
     releaseImplementation(libs.redscreenofdeath.noop)
+    "customImplementation"(libs.redscreenofdeath.noop)
 
     // Testing
     testImplementation(libs.junit.api)

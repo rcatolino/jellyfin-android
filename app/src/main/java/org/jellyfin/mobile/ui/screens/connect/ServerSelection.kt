@@ -89,6 +89,8 @@ fun ServerSelection(
             checkUrlState = state
             if (state is CheckUrlState.Success) {
                 onConnected(state.address)
+            } else {
+                onConnected(hostname)
             }
         }
     }

@@ -161,6 +161,7 @@ class WebViewFragment : Fragment() {
             onSelectServer(error = false)
         }
 
+        webView.getSettings().setMediaPlaybackRequiresUserGesture(false)
         // Process JS functions called from other components (e.g. the PlayerActivity)
         lifecycleScope.launch {
             for (function in webappFunctionChannel) {

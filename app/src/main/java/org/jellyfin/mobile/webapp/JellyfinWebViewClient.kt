@@ -1,7 +1,12 @@
 package org.jellyfin.mobile.webapp
 
+import android.app.Activity
 import android.net.Uri
 import android.net.http.SslError
+import android.security.KeyChain
+import android.security.KeyChainAliasCallback
+import android.security.KeyChainException
+import android.webkit.ClientCertRequest
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -11,8 +16,10 @@ import androidx.webkit.WebViewAssetLoader.AssetsPathHandler
 import androidx.webkit.WebViewClientCompat
 import androidx.webkit.WebViewFeature
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.jellyfin.mobile.app.ApiClientController
+import org.jellyfin.mobile.app.AppPreferences
 import org.jellyfin.mobile.data.entity.ServerEntity
 import org.jellyfin.mobile.utils.Constants
 import org.jellyfin.mobile.utils.initLocale
@@ -31,6 +38,9 @@ abstract class JellyfinWebViewClient(
     private val server: ServerEntity,
     private val assetsPathHandler: AssetsPathHandler,
     private val apiClientController: ApiClientController,
+    private val parent: Activity?,
+    private val preferences: AppPreferences,
+    private val externalScope: CoroutineScope = GlobalScope,
 ) : WebViewClientCompat() {
 
     abstract fun onConnectedToWebapp()
@@ -111,5 +121,53 @@ abstract class JellyfinWebViewClient(
         Timber.e("Received SSL error: %s", error.toString())
         handler.cancel()
         onErrorReceived()
+    }
+
+    private fun answerCertRequest(alias: String, view: WebView, request: ClientCertRequest) : Boolean {
+        try {
+            val chain = KeyChain.getCertificateChain(view.context, alias)
+            val privateKey = KeyChain.getPrivateKey(view.context, alias)
+            request.proceed(privateKey, chain)
+            return true
+        } catch (e: KeyChainException) {
+            Timber.d("Error getting certificate chain or private key : %s", e)
+        } catch (e: InterruptedException) {
+            Timber.d("Interrupted while getting certificate chain or private key : %s", e)
+        }
+
+        return false
+    }
+
+    override fun onReceivedClientCertRequest (view: WebView, request: ClientCertRequest) {
+        Timber.d("SSL Client Cert required")
+        externalScope.launch {
+            var alias = preferences.certificateAlias
+            if (alias != null) {
+                Timber.d("Using stored alias %s", alias)
+                if (!answerCertRequest(alias, view, request)) {
+                    preferences.certificateAlias = null
+                    alias = null
+                }
+            }
+
+            if (alias == null) {
+                if (parent != null) {
+                    KeyChain.choosePrivateKeyAlias(parent, KeyChainAliasCallback {
+                        if (it != null) {
+                            Timber.d("Using choosen alias %s", it)
+                            if (answerCertRequest(it, view, request)) {
+                                Timber.d("Storing choosen alias %s for future use", it)
+                                preferences.certificateAlias = it
+                            } else {
+                                request.ignore()
+                            }
+                        }
+                    }, request.getKeyTypes(), request.getPrincipals(), request.getHost(), request.getPort(), null)
+                } else {
+                    Timber.d("SSL Client cert ignored because parent activity is null")
+                    request.ignore()
+                }
+            }
+        }
     }
 }

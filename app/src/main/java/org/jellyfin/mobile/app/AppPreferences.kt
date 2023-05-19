@@ -112,4 +112,8 @@ class AppPreferences(context: Context) {
     var externalPlayerApp: String
         get() = sharedPreferences.getString(Constants.PREF_EXTERNAL_PLAYER_APP, ExternalPlayerPackage.SYSTEM_DEFAULT)!!
         set(value) = sharedPreferences.edit { putString(Constants.PREF_EXTERNAL_PLAYER_APP, value) }
+
+    var certificateAlias: String?
+        get() = sharedPreferences.getString(Constants.PREF_CLIENT_CERT_ALIAS, null)
+        set(value) = sharedPreferences.edit { putString(Constants.PREF_CLIENT_CERT_ALIAS, value) }
 }

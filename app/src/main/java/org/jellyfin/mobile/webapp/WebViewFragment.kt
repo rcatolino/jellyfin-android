@@ -83,6 +83,8 @@ class WebViewFragment : Fragment() {
             server,
             assetsPathHandler,
             apiClientController,
+            activity,
+            appPreferences,
         ) {
             override fun onConnectedToWebapp() {
                 val webViewBinding = webViewBinding ?: return
